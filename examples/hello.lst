@@ -1,0 +1,22 @@
+                    ; hello.asm — Print "Hello, World!" via I/O port at 0xFF
+                    ;
+                    ; Demonstrates: LD, ST, CMP, INC, BZ, JMP, indexed addressing, .EQU, .DS
+                    ;
+                        .EQU IO, 0xFF
+                    
+                    start:
+0000  08 00             LD  R0, #0       ; R0 = string index
+                    
+                    loop:
+0002  03 0E             LD  A, [R0+msg]  ; load character at msg[R0]
+0004  58 00             CMP #0           ; null terminator?
+0006  68 05             BZ  done         ; yes — we're done
+0008  1A FF             ST  A, [IO]      ; write character to output
+000A  91                INC R0           ; advance to next character
+000B  60 02             JMP loop         ; repeat
+                    
+                    done:
+000D  A8                HLT
+                    
+                    msg:
+000E  48 65 6C 6C 6F 2C 20 57 6F 72 6C 64 21 0A 00      .DS "Hello, World!\n"

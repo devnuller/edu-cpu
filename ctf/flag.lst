@@ -1,0 +1,4 @@
+00A0                .ORG 0xA0
+                    
+                    msg:
+00A0  43 54 46 7B 3C 69 6E 73 65 72 74 20 66 6C 61 67 20 68 65 72 65 7D 00      .DS "CTF{<insert flag here}"

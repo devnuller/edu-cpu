@@ -1,0 +1,17 @@
+                    .EQU IO, 0xFF
+0000                .ORG 0
+                    
+                    start:
+0000  08 00             LD  R0, #0       ; R0 = memory index
+                    
+                    loop:
+0002  13 00             LD  R1, [R0+0] 
+0004  2A FF             ST  R1, [IO]     ; Write content
+0006  01                LD  A, R0
+0007  58 FF             CMP 0xFF         ; are we done?
+0009  68 03             BZ  done         ; yes — we're done
+000B  91                INC R0
+000C  60 02             JMP loop         ; repeat
+                    
+                    done:
+000E  A8                HLT
