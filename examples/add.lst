@@ -1,0 +1,83 @@
+                    ; add.asm — Add two numbers and print the result as decimal digits
+                    ;
+                    ; Demonstrates: ADD, SUB, CMP, CALL, RET, PUSH, POP, branches, LD/ST
+                    ;
+                    ; Computes 37 + 28 = 65 and prints "65" followed by newline.
+                    ;
+                        .EQU IO, 0xFF
+                    
+                    start:
+0000  00 25             LD  A, #37       ; first number
+0002  30 1C             ADD #28          ; A = 37 + 28 = 65
+0004  70 0B             CALL print_dec   ; print A as decimal
+0006  00 0A             LD  A, #0x0A     ; newline
+0008  1A FF             ST  A, [IO]
+000A  A8                HLT
+                    
+                    ; -------------------------------------------------------
+                    ; print_dec: Print accumulator value as decimal (0–255)
+                    ;   Input: A = value to print
+                    ;   Clobbers: A, R0, R1
+                    ; -------------------------------------------------------
+                    print_dec:
+000B  09                LD  R0, A        ; R0 = value to print
+000C  10 00             LD  R1, #0       ; R1 = leading-zero suppression flag
+                    
+                        ; --- Hundreds digit ---
+000E  00 00             LD  A, #0        ; digit counter
+0010  80                PUSH A           ; save digit counter
+0011  01                LD  A, R0        ; reload value
+                    hundreds:
+0012  58 64             CMP #100
+0014  6B 0A             BNC tens_out     ; A < 100, done counting hundreds
+0016  38 64             SUB #100
+0018  09                LD  R0, A        ; update remaining value
+0019  88                POP A            ; get digit counter
+001A  30 01             ADD #1
+001C  80                PUSH A           ; save updated counter
+001D  01                LD  A, R0
+001E  60 12             JMP hundreds
+                    
+                    tens_out:
+0020  88                POP A            ; A = hundreds digit
+0021  58 00             CMP #0
+0023  68 06             BZ  skip_h       ; skip leading zero
+0025  30 30             ADD #0x30        ; convert to ASCII
+0027  1A FF             ST  A, [IO]
+0029  10 01             LD  R1, #1       ; mark that we printed something
+                    skip_h:
+                    
+                        ; --- Tens digit ---
+002B  00 00             LD  A, #0        ; digit counter
+002D  80                PUSH A
+002E  01                LD  A, R0
+                    tens:
+002F  58 0A             CMP #10
+0031  6B 0A             BNC ones_out     ; A < 10, done counting tens
+0033  38 0A             SUB #10
+0035  09                LD  R0, A
+0036  88                POP A
+0037  30 01             ADD #1
+0039  80                PUSH A
+003A  01                LD  A, R0
+003B  60 2F             JMP tens
+                    
+                    ones_out:
+003D  88                POP A            ; A = tens digit
+003E  58 00             CMP #0
+0040  69 07             BNZ print_t      ; non-zero tens digit, always print
+0042  05                LD  A, R1        ; check if hundreds was printed
+0043  58 00             CMP #0
+0045  68 06             BZ  skip_t       ; skip if no hundreds and tens is zero
+0047  00 00             LD  A, #0        ; reload tens digit (was 0)
+                    print_t:
+0049  30 30             ADD #0x30
+004B  1A FF             ST  A, [IO]
+                    skip_t:
+                    
+                        ; --- Ones digit (always print) ---
+004D  01                LD  A, R0
+004E  30 30             ADD #0x30
+0050  1A FF             ST  A, [IO]
+                    
+0052  78                RET
