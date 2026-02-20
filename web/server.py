@@ -87,10 +87,9 @@ def api_run():
             stderr="",
         )
 
-    # Assemble (user code always starts at address 0)
-    source = ".ORG 0\n" + code
+    # Assemble
     asm = Assembler()
-    output, listing = asm.assemble(source)
+    output, listing = asm.assemble(code)
 
     if asm.errors:
         errors = [_adjust_line(str(e)) for e in asm.errors]
@@ -99,18 +98,6 @@ def api_run():
         )
 
     lst_text = generate_lst(listing) if listing else ""
-
-    # Reject code that overlaps with the flag region
-    overlap = set(output.keys()) & set(FLAG_MAP.keys())
-    if overlap:
-        addrs = ", ".join(f"0x{a:02X}" for a in sorted(overlap)[:10])
-        return jsonify(
-            success=False,
-            errors=[f"Code overlaps with reserved memory at: {addrs}"],
-            listing=lst_text,
-            stdout="",
-            stderr="",
-        )
 
     # Create CPU, load user code first, then flag data
     cpu = CPU()
