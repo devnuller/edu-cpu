@@ -57,7 +57,7 @@ textarea,.output{
   font-family:var(--mono);font-size:.85rem;line-height:1.6;
   tab-size:4;
 }
-textarea{min-height:260px}
+textarea{min-height:520px}
 .output{
   min-height:120px;max-height:400px;overflow:auto;
   resize:vertical;white-space:pre;
@@ -120,9 +120,17 @@ label.check input{accent-color:var(--accent)}
   column-count:2;column-gap:2rem;
 }
 .ref.visible{display:block}
+.ref section{break-inside:avoid;margin-bottom:.3rem}
 .ref h3{color:var(--accent);font-size:.82rem;margin:.6rem 0 .2rem;break-after:avoid}
 .ref h3:first-child{margin-top:0}
+.ref p{margin:.2rem 0}
 .ref code{color:var(--text)}
+.ref pre{
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:4px;padding:.4rem .6rem;margin:.3rem 0 .2rem;
+  color:var(--text);overflow-x:auto;white-space:pre;
+  font-size:.75rem;line-height:1.5;
+}
 @media(max-width:700px){.ref{column-count:1}}
 </style>
 </head>
@@ -141,43 +149,146 @@ label.check input{accent-color:var(--accent)}
     ISA Quick Reference
   </button>
   <div class="ref" id="ref">
-    <h3>Registers</h3>
-    <code>A</code> (accumulator), <code>R0</code>, <code>R1</code><br>
-    4-entry hardware stack (PUSH/POP, CALL/RET)
+    <section>
+      <h3>Registers</h3>
+      <p><code>A</code> — the accumulator, implicit destination for all ALU operations.
+      <code>R0</code>, <code>R1</code> — general-purpose registers.
+      All are 8-bit (values 0–255). A 4-entry hardware stack supports
+      <code>PUSH</code>/<code>POP</code> and <code>CALL</code>/<code>RET</code>.</p>
+    </section>
 
-    <h3>Load / Store</h3>
-    <code>LD A, src</code> &middot; <code>LD R0, src</code> &middot; <code>LD R1, src</code><br>
-    <code>ST A, dst</code> &middot; <code>ST R0, dst</code> &middot; <code>ST R1, dst</code>
+    <section>
+      <h3>Load &amp; Store</h3>
+      <p>Two-operand syntax. <code>LD</code> copies a value <em>into</em> a register.
+      <code>ST</code> copies a register value <em>out</em> to a destination.
+      Works with <code>A</code>, <code>R0</code>, and <code>R1</code>.
+      Neither instruction affects flags.</p>
+<pre>LD  A, #42       ; A ← immediate value 42
+LD  R0, A        ; R0 ← copy of A (register mode)
+LD  A, [0x80]    ; A ← contents of memory[0x80]
+LD  A, [R0+3]    ; A ← memory[R0 + 3] (indexed)
+ST  A, [0xFF]    ; memory[0xFF] ← A (output port)
+ST  R1, [R0+0]   ; memory[R0] ← R1</pre>
+    </section>
 
-    <h3>Addressing Modes</h3>
-    <code>#val</code> immediate &middot;
-    <code>Rn</code> register &middot;
-    <code>[addr]</code> direct &middot;
-    <code>[Rn+off]</code> indexed
+    <section>
+      <h3>Addressing Modes</h3>
+      <p>Every LD, ST, and ALU instruction can use one of four modes:</p>
+      <p><code>#val</code> — <strong>immediate</strong>: the value is encoded in the instruction itself.<br>
+      <code>Rn</code> — <strong>register</strong>: the value comes from another register (1-byte instruction, no operand).<br>
+      <code>[addr]</code> — <strong>direct</strong>: read/write a fixed memory address.<br>
+      <code>[Rn+off]</code> — <strong>indexed</strong>: memory at register + offset. Write <code>[Rn]</code> when offset is 0.</p>
+    </section>
 
-    <h3>ALU (A = A op src)</h3>
-    <code>ADD</code> &middot; <code>SUB</code> &middot;
-    <code>AND</code> &middot; <code>OR</code> &middot;
-    <code>XOR</code> &middot; <code>CMP</code> (flags only)
+    <section>
+      <h3>ALU Operations</h3>
+      <p>One-operand syntax — <code>A</code> is always the implicit accumulator
+      (both source and destination). All ALU ops set the <strong>Z</strong> (zero) flag.
+      <code>ADD</code>/<code>SUB</code>/<code>CMP</code> also set <strong>C</strong> (carry);
+      logic ops (<code>AND</code>/<code>OR</code>/<code>XOR</code>) clear it.</p>
+<pre>ADD #10      ; A ← A + 10
+SUB R0       ; A ← A − R0
+AND #0x0F    ; A ← A &amp; 0x0F (mask low nibble)
+OR  #0x80    ; A ← A | 0x80 (set high bit)
+XOR #0xFF    ; A ← A ^ 0xFF (invert all bits)
+CMP #0       ; set flags for A − 0, discard result</pre>
+    </section>
 
-    <h3>Branches</h3>
-    <code>JMP addr</code> &middot;
-    <code>BZ addr</code> &middot; <code>BNZ addr</code> &middot;
-    <code>BC addr</code> &middot; <code>BNC addr</code><br>
-    <code>CALL addr</code> &middot; <code>RET</code>
+    <section>
+      <h3>Flags &amp; Comparisons</h3>
+      <p><strong>Z</strong>=1 when result is zero.
+      <strong>C</strong>=1 on unsigned overflow (ADD) or when A&nbsp;&ge;&nbsp;operand
+      (SUB/CMP — uses 6502/ARM "no borrow" convention).
+      Use <code>CMP</code> followed by a conditional branch:</p>
+<pre>CMP #10      ; compare A against 10
+BZ  equal    ; branch if A == 10
+BNZ not_eq   ; branch if A != 10
+BC  gte      ; branch if A &gt;= 10
+BNC less     ; branch if A &lt; 10</pre>
+    </section>
 
-    <h3>Other</h3>
-    <code>INC A/R0/R1</code> &middot; <code>DEC A/R0/R1</code><br>
-    <code>PUSH A/R0/R1</code> &middot; <code>POP A/R0/R1</code><br>
-    <code>NOP</code> &middot; <code>HLT</code>
+    <section>
+      <h3>Jumps &amp; Branches</h3>
+      <p><code>JMP addr</code> — absolute jump to any address.
+      <code>BZ</code>/<code>BNZ</code>/<code>BC</code>/<code>BNC</code> — conditional
+      branches. The assembler computes the PC-relative offset automatically
+      when you use a label.</p>
+<pre>loop:
+    DEC R0
+    BNZ loop     ; repeat until R0 is zero
+    JMP done     ; then jump ahead</pre>
+    </section>
 
-    <h3>I/O</h3>
-    Write a byte to address <code>0xFF</code> to produce output.<br>
-    Example: <code>ST A, [0xFF]</code>
+    <section>
+      <h3>Subroutines</h3>
+      <p><code>CALL addr</code> pushes the return address onto the
+      hardware stack and jumps to the target.
+      <code>RET</code> pops the return address and resumes execution.
+      The stack is shared with PUSH/POP (4 entries total — plan accordingly).</p>
+<pre>    CALL my_func  ; call subroutine
+    HLT
+my_func:
+    ST  A, [0xFF] ; do some work
+    RET           ; return to caller</pre>
+    </section>
 
-    <h3>Memory</h3>
-    256 bytes total: <code>0x00</code>&ndash;<code>0xFE</code> RAM,
-    <code>0xFF</code> output port
+    <section>
+      <h3>Stack</h3>
+      <p><code>PUSH A/R0/R1</code> saves a register onto the 4-entry hardware stack.
+      <code>POP A/R0/R1</code> restores it (LIFO order). Commonly used to save/restore
+      registers inside subroutines.</p>
+<pre>my_func:
+    PUSH R0       ; save R0
+    LD   R0, #5   ; use R0 for local work
+    ; ...
+    POP  R0       ; restore original R0
+    RET</pre>
+    </section>
+
+    <section>
+      <h3>INC / DEC</h3>
+      <p><code>INC A/R0/R1</code> and <code>DEC A/R0/R1</code> add or subtract 1.
+      Wraps on overflow (255+1→0, 0−1→255).
+      Sets the <strong>Z</strong> flag only — does <em>not</em> affect <strong>C</strong>,
+      making them ideal for loop counters that shouldn't disturb carry state.</p>
+<pre>    LD  R1, #3    ; loop 3 times
+loop:
+    ; ... loop body ...
+    DEC R1
+    BNZ loop      ; repeat until R1 is zero</pre>
+    </section>
+
+    <section>
+      <h3>I/O &amp; Memory</h3>
+      <p>256 bytes total: <code>0x00</code>–<code>0xFE</code> is RAM
+      (code and data share the same space — von Neumann architecture).
+      <code>0xFF</code> is the output port — writing a byte there sends it
+      to external output. Execution starts at address <code>0x00</code>.</p>
+<pre>.EQU IO, 0xFF
+LD  A, #0x48    ; ASCII 'H'
+ST  A, [IO]     ; prints "H"</pre>
+    </section>
+
+    <section>
+      <h3>Directives</h3>
+      <p><code>.EQU name, value</code> — define a named constant.<br>
+      <code>.ORG addr</code> — set the next assembly address.<br>
+      <code>.DB v1, v2, …</code> — emit raw data bytes.<br>
+      <code>.DS "text"</code> — emit a null-terminated string
+      (supports <code>\n</code> <code>\t</code> <code>\r</code> <code>\0</code> <code>\\</code> escapes).</p>
+<pre>.EQU IO, 0xFF
+msg:
+    .DS "Hello!\n"  ; H,e,l,l,o,!,0x0A,0x00
+data:
+    .DB 1, 2, 0xFF  ; three raw bytes</pre>
+    </section>
+
+    <section>
+      <h3>System</h3>
+      <p><code>NOP</code> — no operation (does nothing, advances PC).
+      <code>HLT</code> — halts the CPU. Every program should end with <code>HLT</code>
+      to stop execution cleanly.</p>
+    </section>
   </div>
 
   <!-- Code Editor -->
@@ -187,14 +298,75 @@ label.check input{accent-color:var(--accent)}
       <span style="font-size:.7rem">Ctrl+Enter to run</span>
     </div>
     <div class="panel-body">
-      <textarea id="code" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off">; Write your EDU-CPU assembly here.
-; Your code is loaded at address 0x00.
-; Hint: there is data hidden in memory.
-; Write bytes to 0xFF to produce output.
+      <textarea id="code" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off">; hello.asm — Print "Hello world!" on the EDU-CPU
+; Yes, there is an easier way to do this, but this example
+; uses convoluted code to show you as much of the instruction
+; set and assembler syntax as possible.
+;
+; Demonstrates: LD/ST, ADD, XOR, CMP, INC, DEC,
+;   PUSH, POP, CALL, RET, JMP, BZ, BNZ, HLT,
+;   immediate/register/direct/indexed addressing,
+;   and .EQU, .DS, .DB directives.
+;
+; After running this code, try to write your own
+; code to hunt for hidden treasure
 
-    LD A, #0x41     ; ASCII 'A'
-    ST A, [0xFF]    ; send to output
+    .EQU IO, 0xFF          ; I/O output port address
+
+; --- Part 1: Print "Hello " with indexed addressing ---
+start:
+    LD  R0, #0              ; R0 = character index
+
+print_hello:
+    LD  A, [R0+hello_str]  ; Load char (indexed mode)
+    CMP #0                  ; Null terminator?
+    BZ  print_world         ; Yes — move on
+    ST  A, [IO]             ; Output character (direct mode)
+    INC R0                  ; Next character
+    JMP print_hello
+
+; --- Part 2: Print "world" by XOR-decoding ---
+print_world:
+    LD  R0, #0              ; Reset index
+    LD  R1, #5              ; R1 = chars to decode
+
+decode_loop:
+    LD  A, [R0+xor_data]   ; Load encoded byte (indexed mode)
+    XOR #0x55              ; Decode: original = encoded XOR key
+    CALL print_char         ; Print via subroutine
+    INC R0
+    DEC R1                  ; Decrement counter
+    BNZ decode_loop         ; Loop until done
+
+; --- Part 3: Build '!' with register arithmetic ---
+    LD  A, #0x11
+    LD  R0, A               ; R0 ← A (register-to-register)
+    LD  A, #0x10
+    ADD R0                  ; A = 0x10 + 0x11 = 0x21 = '!'
+    ST  A, [IO]
+
+    LD  A, #0x0A            ; Newline
+    ST  A, [IO]
     HLT
+
+; --- Subroutine: output char in A, preserving regs ---
+print_char:
+    PUSH R0                 ; Save R0 on hardware stack
+    PUSH R1                 ; Save R1
+    ST   A, [IO]            ; Write to output port
+    POP  R1                 ; Restore R1 (LIFO order)
+    POP  R0                 ; Restore R0
+    RET
+
+; --- Data section ---
+hello_str:
+    .DS "Hello "            ; Null-terminated string
+
+xor_data:
+    ; "world" encoded with XOR 0x55
+    ; w^0x55=0x22 o^0x55=0x3A r^0x55=0x27
+    ; l^0x55=0x39 d^0x55=0x31
+    .DB 0x22, 0x3A, 0x27, 0x39, 0x31
 </textarea>
     </div>
   </div>
