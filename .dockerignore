@@ -1,0 +1,11 @@
+__pycache__
+*.pyc
+*.bin
+*.lst
+*.srec
+examples/
+.git
+.gitignore
+LICENSE
+CLAUDE.md
+README.md

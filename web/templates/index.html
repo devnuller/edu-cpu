@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EDU-CPU CTF</title>
+<style>
+:root {
+  --bg:        #0a0e17;
+  --panel:     #111827;
+  --panel-alt: #151d2e;
+  --border:    #1e2d4a;
+  --text:      #c9cdd5;
+  --text-dim:  #5a6484;
+  --accent:    #00e676;
+  --accent-dim:#00b35f;
+  --error:     #ff4757;
+  --error-bg:  #2a1019;
+  --highlight: #182238;
+  --mono: 'JetBrains Mono','Fira Code','Cascadia Code','Consolas','Courier New',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{font-size:14px}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:var(--mono);
+  min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;
+  padding:1.5rem 1rem;
+}
+a{color:var(--accent)}
+h1{
+  font-size:1.6rem;letter-spacing:.08em;
+  color:var(--accent);text-transform:uppercase;
+  margin-bottom:.25rem;
+}
+.subtitle{color:var(--text-dim);font-size:.85rem;margin-bottom:1.5rem}
+
+.container{width:100%;max-width:1100px}
+
+/* ---------- panels ---------- */
+.panel{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:6px;margin-bottom:1rem;overflow:hidden;
+}
+.panel-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.5rem .75rem;background:var(--panel-alt);
+  border-bottom:1px solid var(--border);font-size:.8rem;
+  color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;
+  user-select:none;
+}
+.panel-body{padding:0}
+textarea,.output{
+  display:block;width:100%;background:transparent;color:var(--text);
+  border:none;outline:none;resize:vertical;padding:.75rem;
+  font-family:var(--mono);font-size:.85rem;line-height:1.6;
+  tab-size:4;
+}
+textarea{min-height:260px}
+.output{
+  min-height:120px;max-height:400px;overflow:auto;
+  resize:vertical;white-space:pre;
+}
+.output.stdout{color:#a0f0c0}
+.output.stderr{color:#ffa64d}
+
+/* ---------- controls ---------- */
+.controls{
+  display:flex;align-items:center;gap:1rem;
+  margin-bottom:1rem;flex-wrap:wrap;
+}
+button{
+  background:var(--accent);color:#0a0e17;
+  border:none;border-radius:4px;padding:.5rem 1.5rem;
+  font-family:var(--mono);font-size:.85rem;font-weight:700;
+  cursor:pointer;letter-spacing:.04em;text-transform:uppercase;
+  transition:background .15s;
+}
+button:hover{background:var(--accent-dim)}
+button:disabled{opacity:.5;cursor:not-allowed}
+label.check{
+  display:flex;align-items:center;gap:.4rem;
+  color:var(--text-dim);cursor:pointer;font-size:.85rem;
+}
+label.check input{accent-color:var(--accent)}
+.status{font-size:.8rem;color:var(--text-dim)}
+.status.ok{color:var(--accent)}
+.status.err{color:var(--error)}
+
+/* ---------- errors ---------- */
+.errors{
+  background:var(--error-bg);border:1px solid #4a1020;
+  border-radius:6px;padding:.75rem;margin-bottom:1rem;
+  color:var(--error);font-size:.82rem;line-height:1.6;
+  display:none;white-space:pre-wrap;
+}
+.errors.visible{display:block}
+
+/* ---------- output grid ---------- */
+.output-row{
+  display:grid;grid-template-columns:1fr 1fr;gap:1rem;
+}
+@media(max-width:700px){
+  .output-row{grid-template-columns:1fr}
+}
+
+/* ---------- ISA reference ---------- */
+.ref-toggle{
+  background:none;border:1px solid var(--border);color:var(--text-dim);
+  border-radius:4px;padding:.3rem .8rem;font-size:.75rem;
+  cursor:pointer;text-transform:uppercase;letter-spacing:.04em;
+  margin-bottom:1rem;
+}
+.ref-toggle:hover{border-color:var(--accent);color:var(--accent);background:none}
+.ref{
+  display:none;background:var(--panel);border:1px solid var(--border);
+  border-radius:6px;padding:1rem;margin-bottom:1rem;
+  font-size:.78rem;line-height:1.65;color:var(--text-dim);
+  column-count:2;column-gap:2rem;
+}
+.ref.visible{display:block}
+.ref h3{color:var(--accent);font-size:.82rem;margin:.6rem 0 .2rem;break-after:avoid}
+.ref h3:first-child{margin-top:0}
+.ref code{color:var(--text)}
+@media(max-width:700px){.ref{column-count:1}}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>EDU-CPU CTF</h1>
+  <p class="subtitle">
+    Write an assembly routine for the EDU-CPU 8-bit processor.
+    Your code is loaded at address 0x00. There is something interesting
+    hidden elsewhere in memory. Output is the byte written to address 0xFF.
+  </p>
+
+  <!-- ISA Quick Reference -->
+  <button class="ref-toggle" onclick="document.getElementById('ref').classList.toggle('visible')">
+    ISA Quick Reference
+  </button>
+  <div class="ref" id="ref">
+    <h3>Registers</h3>
+    <code>A</code> (accumulator), <code>R0</code>, <code>R1</code><br>
+    4-entry hardware stack (PUSH/POP, CALL/RET)
+
+    <h3>Load / Store</h3>
+    <code>LD A, src</code> &middot; <code>LD R0, src</code> &middot; <code>LD R1, src</code><br>
+    <code>ST A, dst</code> &middot; <code>ST R0, dst</code> &middot; <code>ST R1, dst</code>
+
+    <h3>Addressing Modes</h3>
+    <code>#val</code> immediate &middot;
+    <code>Rn</code> register &middot;
+    <code>[addr]</code> direct &middot;
+    <code>[Rn+off]</code> indexed
+
+    <h3>ALU (A = A op src)</h3>
+    <code>ADD</code> &middot; <code>SUB</code> &middot;
+    <code>AND</code> &middot; <code>OR</code> &middot;
+    <code>XOR</code> &middot; <code>CMP</code> (flags only)
+
+    <h3>Branches</h3>
+    <code>JMP addr</code> &middot;
+    <code>BZ addr</code> &middot; <code>BNZ addr</code> &middot;
+    <code>BC addr</code> &middot; <code>BNC addr</code><br>
+    <code>CALL addr</code> &middot; <code>RET</code>
+
+    <h3>Other</h3>
+    <code>INC A/R0/R1</code> &middot; <code>DEC A/R0/R1</code><br>
+    <code>PUSH A/R0/R1</code> &middot; <code>POP A/R0/R1</code><br>
+    <code>NOP</code> &middot; <code>HLT</code>
+
+    <h3>I/O</h3>
+    Write a byte to address <code>0xFF</code> to produce output.<br>
+    Example: <code>ST A, [0xFF]</code>
+
+    <h3>Memory</h3>
+    256 bytes total: <code>0x00</code>&ndash;<code>0xFE</code> RAM,
+    <code>0xFF</code> output port
+  </div>
+
+  <!-- Code Editor -->
+  <div class="panel">
+    <div class="panel-header">
+      <span>Assembly Editor</span>
+      <span style="font-size:.7rem">Ctrl+Enter to run</span>
+    </div>
+    <div class="panel-body">
+      <textarea id="code" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off">; Write your EDU-CPU assembly here.
+; Your code is loaded at address 0x00.
+; Hint: there is data hidden in memory.
+; Write bytes to 0xFF to produce output.
+
+    LD A, #0x41     ; ASCII 'A'
+    ST A, [0xFF]    ; send to output
+    HLT
+</textarea>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button id="run-btn" onclick="runCode()">Run</button>
+    <label class="check">
+      <input type="checkbox" id="trace"> Enable trace
+    </label>
+    <span class="status" id="status"></span>
+  </div>
+
+  <!-- Errors -->
+  <div class="errors" id="errors"></div>
+
+  <!-- Assembly Listing -->
+  <div class="panel" id="listing-panel" style="display:none">
+    <div class="panel-header"><span>Assembly Listing</span></div>
+    <div class="panel-body">
+      <div class="output" id="listing"></div>
+    </div>
+  </div>
+
+  <!-- Stdout / Stderr -->
+  <div class="output-row">
+    <div class="panel">
+      <div class="panel-header"><span>Output (stdout)</span></div>
+      <div class="panel-body">
+        <div class="output stdout" id="stdout"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><span>Trace / Errors (stderr)</span></div>
+      <div class="panel-body">
+        <div class="output stderr" id="stderr"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $code    = document.getElementById('code');
+const $trace   = document.getElementById('trace');
+const $btn     = document.getElementById('run-btn');
+const $status  = document.getElementById('status');
+const $errors  = document.getElementById('errors');
+const $listing = document.getElementById('listing');
+const $listPnl = document.getElementById('listing-panel');
+const $stdout  = document.getElementById('stdout');
+const $stderr  = document.getElementById('stderr');
+
+// Ctrl+Enter shortcut
+$code.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    runCode();
+  }
+  // Tab inserts spaces
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const s = $code.selectionStart, end = $code.selectionEnd;
+    $code.value = $code.value.substring(0, s) + '    ' + $code.value.substring(end);
+    $code.selectionStart = $code.selectionEnd = s + 4;
+  }
+});
+
+async function runCode() {
+  $btn.disabled = true;
+  $status.textContent = 'Assembling\u2026';
+  $status.className = 'status';
+  $errors.classList.remove('visible');
+  $errors.textContent = '';
+  $listing.textContent = '';
+  $listPnl.style.display = 'none';
+  $stdout.textContent = '';
+  $stderr.textContent = '';
+
+  try {
+    const resp = await fetch('/api/run', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        code:  $code.value,
+        trace: $trace.checked,
+      }),
+    });
+    const r = await resp.json();
+
+    if (r.listing) {
+      $listing.textContent = r.listing;
+      $listPnl.style.display = '';
+    }
+    $stdout.textContent = r.stdout || '';
+    $stderr.textContent = r.stderr || '';
+
+    if (!r.success) {
+      $errors.textContent = r.errors.join('\n');
+      $errors.classList.add('visible');
+      $status.textContent = 'Assembly failed';
+      $status.className = 'status err';
+    } else {
+      const tag = r.exit_code === 0 ? 'ok' : 'err';
+      $status.textContent = `Done \u2014 ${r.cycles} cycles (exit ${r.exit_code})`;
+      $status.className = 'status ' + tag;
+    }
+  } catch (err) {
+    $errors.textContent = 'Request failed: ' + err.message;
+    $errors.classList.add('visible');
+    $status.textContent = 'Error';
+    $status.className = 'status err';
+  } finally {
+    $btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
